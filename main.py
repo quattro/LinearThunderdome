@@ -9,6 +9,9 @@ import scipy.stats as stats
 
 from numpy.linalg import multi_dot
 
+from methods import *
+import projection as prj
+
 mdot = multi_dot
 
 
@@ -31,10 +34,6 @@ def get_matrix(beta, alpha):
     return A
 
 
-def rmse(y, yhat):
-    return np.sqrt(np.mean((y - yhat) ** 2))
-
-
 def main(args):
     argp = ap.ArgumentParser(description="")
     argp.add_argument("n", type=int, help="number of samples")
@@ -47,8 +46,7 @@ def main(args):
     args = argp.parse_args(args)
     H2LOCAL = 0.25
 
-    pinvs = []
-    rinvs = []
+    methods = [OLS(), RR(plambda=0.1), RobReg(rho=1.0)]
     for i in range(args.iter):
 
         # simulate samples
@@ -58,7 +56,6 @@ def main(args):
         X -= np.mean(X, axis=0)
         X /= np.std(X, axis=0)
 
-        Vest = np.corrcoef(X.T)
 
         # simulate trait
         beta = np.random.normal(loc=0, scale=1, size=p)
@@ -68,13 +65,16 @@ def main(args):
         eps = np.random.normal(loc=0, scale=np.sqrt(s2e), size=args.n)
         y = g + eps
 
-        beta_hat_pinv = mdot([linalg.pinv(Vest), X.T, y])
-        beta_hat_ridge = mdot([linalg.inv(Vest + np.eye(p) * 0.1), X.T, y])
-        pinvs.append(rmse(beta, beta_hat_pinv))
-        rinvs.append(rmse(beta, beta_hat_ridge))
+        for method in methods:
+            method.fit(X, y, beta)
 
-    args.output.write("Psuedo-inverse Avg RMSE = {} (sd={})".format(np.mean(pinvs), np.std(pinvs)) + os.linesep)
-    args.output.write("Ridge Avg RMSE = {} (sd={})".format(np.mean(rinvs), np.std(rinvs)) + os.linesep)
+    for method in methods:
+        args.output.write("{} Avg BETA RMSE = {} (sd={})".format(method.name, \
+                                                                 np.mean(method.beta_errors), \
+                                                                 np.std(method.beta_errors)) + os.linesep)
+        args.output.write("{} Avg PRED RMSE = {} (sd={})".format(method.name, \
+                                                                 np.mean(method.pred_errors), \
+                                                                 np.std(method.pred_errors)) + os.linesep)
 
     return 0
 
