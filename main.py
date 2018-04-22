@@ -46,7 +46,7 @@ def main(args):
     args = argp.parse_args(args)
     H2LOCAL = 0.25
 
-    methods = [OLS(), RR(plambda=0.1), RobReg(rho=1.0)]
+    methods = [OLS(), RR(plambda=0.1), RobReg(rho=1.0), BLUP()]
     for i in range(args.iter):
 
         # simulate samples
@@ -69,12 +69,15 @@ def main(args):
             method.fit(X, y, beta)
 
     for method in methods:
-        args.output.write("{} Avg BETA RMSE = {} (sd={})".format(method.name, \
+        args.output.write("{} Avg BETA RMSE = {:.3f} (sd={:.3f})".format(method.name, \
                                                                  np.mean(method.beta_errors), \
                                                                  np.std(method.beta_errors)) + os.linesep)
-        args.output.write("{} Avg PRED RMSE = {} (sd={})".format(method.name, \
+        args.output.write("{} Avg PRED RMSE = {:.3f} (sd={:.3f})".format(method.name, \
                                                                  np.mean(method.pred_errors), \
                                                                  np.std(method.pred_errors)) + os.linesep)
+        args.output.write("{} Avg CORR = {:.3f} (sd={:.3f})".format(method.name, \
+                                                                 np.mean(method.corr), \
+                                                                 np.std(method.corr)) + os.linesep)
 
     return 0
 
