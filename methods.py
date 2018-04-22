@@ -9,33 +9,13 @@ import projection as prj
 mdot = multi_dot
 
 
-def rmse(y, yhat):
-    return np.sqrt(np.mean((y - yhat) ** 2))
-
-
 class Method(object):
 
     def __init__(self):
-        self._beta_errors = []
-        self._pred_errors = []
-        self._corr = []
         return
 
-    def fit(self, X, y, coef):
+    def fit(self, X, y):
         pass
-
-    @property
-    def beta_errors(self):
-        return self._beta_errors
-
-    @property
-    def pred_errors(self):
-        return self._pred_errors
-
-    @property
-    def corr(self):
-        return self._corr
-    
 
 class RobReg(Method):
 
@@ -44,7 +24,7 @@ class RobReg(Method):
         super(RobReg, self).__init__()
         return
 
-    def fit(self, X, y, coef):
+    def fit(self, X, y):
 
         def loss(pred, ground):
             return linalg.norm(pred - ground) ** 2
@@ -60,10 +40,7 @@ class RobReg(Method):
                 break
             last = loss_v
 
-        self.beta_errors.append(rmse(bhat, coef))
-        self.pred_errors.append(rmse(X.dot(bhat), y))
-        self.corr.append(np.corrcoef(X.dot(bhat), y)[0, 1])
-        return
+        return bhat
 
     @property
     def name(self):
@@ -124,13 +101,10 @@ class BLUP(Method):
 
         return (sigs[0] * X.T, V)
 
-    def fit(self, X, y, coef):
+    def fit(self, X, y):
         C, V, = self._reml(X, y)
         bhat = mdot([C, linalg.inv(V), y])
-        self.beta_errors.append(rmse(bhat, coef))
-        self.pred_errors.append(rmse(X.dot(bhat), y))
-        self.corr.append(np.corrcoef(X.dot(bhat), y)[0, 1])
-        return
+        return bhat
 
     @property
     def name(self):
@@ -138,13 +112,10 @@ class BLUP(Method):
 
 
 class OLS(Method):
-    def fit(self, X, y, coef):
+    def fit(self, X, y):
         Vest = np.corrcoef(X.T)
         bhat = mdot([linalg.pinv(Vest), X.T, y])
-        self.beta_errors.append(rmse(bhat, coef))
-        self.pred_errors.append(rmse(X.dot(bhat), y))
-        self.corr.append(np.corrcoef(X.dot(bhat), y)[0, 1])
-        return
+        return bhat
 
     @property
     def name(self):
@@ -157,14 +128,11 @@ class RR(Method):
         super(RR, self).__init__()
         return
 
-    def fit(self, X, y, coef):
+    def fit(self, X, y):
         n, p = X.shape
         Vest = np.corrcoef(X.T)
         bhat = mdot([linalg.inv(Vest + np.eye(p) * self.plambda), X.T, y])
-        self.beta_errors.append(rmse(bhat, coef))
-        self.pred_errors.append(rmse(X.dot(bhat), y))
-        self.corr.append(np.corrcoef(X.dot(bhat), y)[0, 1])
-        return
+        return bhat
 
     @property
     def name(self):

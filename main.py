@@ -10,7 +10,6 @@ import scipy.stats as stats
 from numpy.linalg import multi_dot
 
 from methods import *
-import projection as prj
 
 mdot = multi_dot
 
@@ -34,6 +33,10 @@ def get_matrix(beta, alpha):
     return A
 
 
+def rmse(y, yhat):
+    return np.sqrt(np.mean((y - yhat) ** 2))
+
+
 def main(args):
     argp = ap.ArgumentParser(description="")
     argp.add_argument("n", type=int, help="number of samples")
@@ -47,12 +50,22 @@ def main(args):
     H2LOCAL = 0.25
 
     methods = [OLS(), RR(plambda=0.1), RobReg(rho=1.0), BLUP()]
+
+    corr = dict()
+    y_rmse = dict()
+    b_rmse = dict()
+
+    for method in methods:
+        corr[method.name] = []
+        y_rmse[method.name] = []
+        b_rmse[method.name] = []
+
     for i in range(args.iter):
 
         # simulate samples
         V = get_matrix(args.beta, args.alpha)
         p, p = V.shape
-        X = np.random.multivariate_normal(mean=np.zeros(p), cov=V, size=args.n)
+        X = np.random.multivariate_normal(mean=np.zeros(p), cov=V, size=args.n * 2)
         X -= np.mean(X, axis=0)
         X /= np.std(X, axis=0)
 
@@ -62,22 +75,31 @@ def main(args):
         g = X.dot(beta)
         s2g = np.var(g, ddof=1)
         s2e = s2g * (( 1 / H2LOCAL ) - 1)
-        eps = np.random.normal(loc=0, scale=np.sqrt(s2e), size=args.n)
+        eps = np.random.normal(loc=0, scale=np.sqrt(s2e), size=args.n * 2)
         y = g + eps
 
+        ytrain = y[:args.n]
+        Xtrain = X[:args.n]
+        ytest = y[args.n:]
+        Xtest = X[args.n:]
+
         for method in methods:
-            method.fit(X, y, beta)
+            coef = method.fit(Xtrain, ytrain)
+            cor = np.corrcoef(Xtest.dot(coef), ytest)[0, 1]
+            corr[method.name].append(cor)
+            b_rmse[method.name].append(rmse(coef, beta))
+            y_rmse[method.name].append(rmse(ytrain, Xtrain.dot(coef)))
 
     for method in methods:
         args.output.write("{} Avg BETA RMSE = {:.3f} (sd={:.3f})".format(method.name, \
-                                                                 np.mean(method.beta_errors), \
-                                                                 np.std(method.beta_errors)) + os.linesep)
+                                                                 np.mean(b_rmse[method.name]), \
+                                                                 np.std(b_rmse[method.name])) + os.linesep)
         args.output.write("{} Avg PRED RMSE = {:.3f} (sd={:.3f})".format(method.name, \
-                                                                 np.mean(method.pred_errors), \
-                                                                 np.std(method.pred_errors)) + os.linesep)
+                                                                 np.mean(y_rmse[method.name]), \
+                                                                 np.std(y_rmse[method.name])) + os.linesep)
         args.output.write("{} Avg CORR = {:.3f} (sd={:.3f})".format(method.name, \
-                                                                 np.mean(method.corr), \
-                                                                 np.std(method.corr)) + os.linesep)
+                                                                 np.mean(corr[method.name]), \
+                                                                 np.std(corr[method.name])) + os.linesep)
 
     return 0
 
