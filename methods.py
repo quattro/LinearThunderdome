@@ -27,15 +27,25 @@ class RobReg(Method):
     def fit(self, X, y):
 
         def loss(pred, ground):
-            return linalg.norm(pred - ground) ** 2
+            return (pred - ground) ** 2
 
         last = -1
         loss_v = -1
-        while True:
-            step = mdot([linalg.inv(X.T.dot(X)), X.T, y])
-            bhat = prj.project_onto_chi_square_ball(step, self.rho)
+        n, p = X.shape
+        bhat = np.zeros(p)
+        ypred = X.dot(bhat)
 
-            loss_v = loss(X.dot(bhat), y)
+        eta = 0.5
+        c = 0.5
+        tau = 0.5
+
+        while True:
+            pstar = prj.project_onto_chi_square_ball(loss(ypred, y), self.rho)
+            P = np.diag(pstar)
+            bhat = mdot([linalg.inv(mdot([X.T, P, X])), X.T, P, y])
+            ypred = X.dot(bhat)
+
+            loss_v = np.sum(pstar * loss(ypred, y))
             if np.abs(loss_v - last) < 1e-6:
                 break
             last = loss_v

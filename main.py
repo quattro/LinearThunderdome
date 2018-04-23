@@ -49,7 +49,8 @@ def main(args):
     args = argp.parse_args(args)
     H2LOCAL = 0.25
 
-    methods = [OLS(), RR(plambda=0.1), RobReg(rho=1.0), BLUP()]
+    #methods = [OLS(), RR(plambda=0.1), RobReg(rho=0.1), BLUP()]
+    methods = [OLS(), RR(plambda=0.1), BLUP()]
 
     corr = dict()
     y_rmse = dict()
